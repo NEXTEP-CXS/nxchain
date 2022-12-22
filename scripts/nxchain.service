@@ -1,0 +1,16 @@
+[Unit]
+Description="nxchain main net service"
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=root
+WorkingDirectory=/home/nextepone/masternode
+ExecStart=/home/nextepone/masternode/run.sh
+
+After=network.target
+StartLimitIntervalSec=0
+
+[Install]
+WantedBy=multi-user.target

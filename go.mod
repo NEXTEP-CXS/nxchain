@@ -1,4 +1,4 @@
-module github.com/unforkableorg/polygon-edge
+module github.com/0xPolygon/polygon-edge
 
 go 1.18
 
