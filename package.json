@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "csvtojson": "^2.0.10",
+    "ethers": "^5.7.2",
+    "web3": "^1.8.2"
+  }
+}

@@ -3,6 +3,8 @@ secretsManagerConfig.json
 *-packr.go
 config*.json
 
+node_modules/
+
 bin/
 
 test-chain*
