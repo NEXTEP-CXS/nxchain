@@ -15,7 +15,7 @@ binary_path="/usr/local/bin/nxchain"
 data_dir="/data/nxchain"
 
 # Set any additional flags or options for the node
-flags="--price-limit 5000000000 --nat $nat_address --chain $data_dir/genesis-testnet.json --libp2p 0.0.0.0:4546 --jsonrpc :4547 --seal"
+flags="--price-limit 5000000000 --nat $nat_address --chain $data_dir/genesis-testnet.json --libp2p 0.0.0.0:4546 --jsonrpc :4545 --seal"
 
 # Download the binary file
 wget https://github.com/unforkableorg/nxchain/releases/download/v$version/nxchain_$version\_linux_amd64.tar.gz
