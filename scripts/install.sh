@@ -6,7 +6,7 @@ nat_address=$(curl ifconfig.me)
 chain=genesis.json
 
 # Set the version of the node
-version=$(curl -s https://api.github.com/repos/unforkableorg/nxchain/releases/latest | grep tag_name | awk '{print $2}' | tr -d '",' | cut -c 2-)
+version=$(curl -s https://api.github.com/repos/NEXTEP-CXS/nxchain/releases/latest | grep tag_name | awk '{print $2}' | tr -d '",' | cut -c 2-)
 
 # Set the path to the binary file
 binary_path="/usr/local/bin/nxchain"
@@ -18,7 +18,7 @@ data_dir="/data/nxchain"
 flags="--price-limit 5000000000 --nat $nat_address --chain $data_dir/$chain --libp2p 0.0.0.0:4546 --jsonrpc :4545 --seal"
 
 # Download the binary file
-wget https://github.com/unforkableorg/nxchain/releases/download/v$version/nxchain_$version\_linux_amd64.tar.gz
+wget https://github.com/NEXTEP-CXS/nxchain/releases/download/v$version/nxchain_$version\_linux_amd64.tar.gz
 
 # Extract the binary file
 tar -xvzf nxchain_$version\_linux_amd64.tar.gz
@@ -37,7 +37,7 @@ sudo $binary_path secrets init --data-dir $data_dir
 # Generate new node secret
 
 sudo rm -f $data_dir/$chain
-sudo wget -P $data_dir https://raw.githubusercontent.com/unforkableorg/nxchain/master/$chain
+sudo wget -P $data_dir https://raw.githubusercontent.com/NEXTEP-CXS/nxchain/master/$chain
 
 # Create the service file
 sudo bash -c "cat >/etc/systemd/system/nxchain.service <<EOL
