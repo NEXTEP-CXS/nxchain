@@ -5,6 +5,8 @@ nat_address=$(curl ifconfig.me)
 
 chain=genesis.json
 
+sudo apt install -y curl
+
 # Set the version of the node
 version=$(curl -s https://api.github.com/repos/NEXTEP-CXS/nxchain/releases/latest | grep tag_name | awk '{print $2}' | tr -d '",' | cut -c 2-)
 
@@ -56,3 +58,5 @@ User=root
 [Install]
 WantedBy=multi-user.target
 EOL"
+
+sudo systemctl enable nxchain
