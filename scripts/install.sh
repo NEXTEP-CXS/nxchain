@@ -43,10 +43,14 @@ sudo wget -P $data_dir https://raw.githubusercontent.com/NEXTEP-CXS/nxchain/mast
 sudo bash -c "cat >/etc/systemd/system/nxchain.service <<EOL
 [Unit]
 Description=NXChain
+After=network.target
+StartLimitIntervalSec=0
 
 [Service]
-ExecStart=$binary_path server --data-dir $data_dir $flags
+Type=simple
 Restart=always
+RestartSec=10
+ExecStart=$binary_path server --data-dir $data_dir $flags
 User=root
 
 [Install]
