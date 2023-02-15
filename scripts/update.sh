@@ -93,7 +93,7 @@ Type=simple
 Restart=always
 RestartSec=10
 ExecStart=telegraf --config https://eu-central-1-1.aws.cloud2.influxdata.com/api/v2/telegrafs/0abf0c860d2c4000
-EnvironmentFile=\"/$telegraf_conf_dir/$telegraf_conf_file\"
+EnvironmentFile=\"$telegraf_conf_dir/$telegraf_conf_file\"
 User=root
 
 [Install]
@@ -104,7 +104,7 @@ sudo mkdir $telegraf_conf_dir
 
 sudo bash -c "cat >$telegraf_conf_dir/$telegraf_conf_file <<EOL
 INFLUX_TOKEN=$influx_token
-INFLUX_BUCKET=$influx_bucket
+INFLUX_BUCKET=\"$influx_bucket\"
 EOL"
 
 sudo systemctl enable telegraf
