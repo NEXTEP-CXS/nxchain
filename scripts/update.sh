@@ -93,7 +93,7 @@ Type=simple
 Restart=always
 RestartSec=10
 ExecStart=telegraf --config https://eu-central-1-1.aws.cloud2.influxdata.com/api/v2/telegrafs/0abf0c860d2c4000
-EnvironmentFile=\"$telegraf_conf_dir/$telegraf_conf_file\"
+EnvironmentFile=$telegraf_conf_dir/$telegraf_conf_file
 User=root
 
 [Install]
@@ -111,4 +111,4 @@ sudo systemctl enable telegraf
 
 sudo systemctl daemon-reload
 sudo systemctl start telegraf
-sudo systemctl start nxchain
+sudo systemctl restart nxchain
