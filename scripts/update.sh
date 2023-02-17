@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if(($# < 2))
+if [ $# -lt 2 ]
 then
 echo "install script"
 echo "arg1: influx token"
