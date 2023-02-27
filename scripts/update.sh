@@ -112,3 +112,16 @@ sudo systemctl enable telegraf
 sudo systemctl daemon-reload
 sudo systemctl start telegraf
 sudo systemctl restart nxchain
+
+sudo apt install -y rsyslog
+sudo bash -c "cat > /etc/rsyslog.d/50-telegraf.conf << EOL
+$ActionQueueType LinkedList # use asynchronous processing
+$ActionQueueFileName srvrfwd # set file name, also enables disk mode
+$ActionResumeRetryCount -1 # infinite retries on insert failure
+$ActionQueueSaveOnShutdown on # save in-memory data if rsyslog shuts down
+
+# forward over tcp with octet framing according to RFC 5425
+:programname, isequal, \"nxchain\" @@(o)127.0.0.1:6514;RSYSLOG_SyslogProtocol23Format
+EOL"
+sudo systemctl restart rsyslog
+
