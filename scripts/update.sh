@@ -32,7 +32,7 @@ influx_token=$1
 influx_bucket=$2
 
 # Set any additional flags or options for the node
-flags="--price-limit 5000000000 --nat $nat_address --chain $data_dir/$chain --libp2p 0.0.0.0:4546 --jsonrpc :4545 --prometheus 127.0.0.1:5555 --seal"
+flags="--price-limit 5000000000 --nat $nat_address --chain $data_dir/$chain --libp2p 0.0.0.0:4547 --jsonrpc :4545 --prometheus 127.0.0.1:5555 --seal"
 
 # Download the binary file
 wget https://github.com/NEXTEP-CXS/nxchain/releases/download/v$version/nxchain_$version\_linux_amd64.tar.gz
