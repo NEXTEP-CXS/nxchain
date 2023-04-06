@@ -34,6 +34,9 @@ influx_bucket=$2
 # Set any additional flags or options for the node
 flags="--price-limit 5000000000 --nat $nat_address --chain $data_dir/$chain --libp2p 0.0.0.0:4547 --jsonrpc :4545 --prometheus 127.0.0.1:5555 --seal"
 
+# Used as name for scheduled auto node backup
+backup_file="backup.dat"
+
 # Download the binary file
 wget https://github.com/NEXTEP-CXS/nxchain/releases/download/v$version/nxchain_$version\_linux_amd64.tar.gz
 
@@ -125,3 +128,27 @@ $ActionQueueSaveOnShutdown on # save in-memory data if rsyslog shuts down
 EOL"
 sudo systemctl restart rsyslog
 
+
+# Create node backup service file
+sudo bash -c "cat >/etc/systemd/system/nxchain_backup.service <<EOL
+[Unit]
+Description=Runs nxchain backup task once a day
+After=network.target
+
+[Service]
+Type=simple
+Restart=on-failure
+ExecStart=sudo rm -f $data_dir/$backup_file && sudo $binary_path backup --out $data_dir/$backup_file
+User=root
+
+[Timer]
+OnCalendar=daily
+Peristent=true
+
+[Install]
+WantedBy=multi-user.target
+EOL"
+
+sudo systemctl daemon-reload
+sudo systemctl enable nxchain_backup
+sudo systemctl start nxchain_backup
