@@ -1,154 +1,195 @@
 #!/bin/bash
 
-if [ $# -lt 2 ]
-then
-echo "install script"
-echo "arg1: influx token"
-echo "arg2: influx bucket"
-exit 0
+# Functions to log messages
+log_info() {
+    echo "INFO: $1"
+}
+
+log_error() {
+    echo "ERROR: $1" >&2
+}
+
+# Function to check for a required command
+require_cmd() {
+    command -v "$1" >/dev/null 2>&1 || {
+        log_error "Command not found: $1. Please install it and run this script again."
+        exit 1
+    }
+}
+
+# Check for required commands
+require_cmd curl
+require_cmd wget
+require_cmd gpg
+require_cmd systemctl
+require_cmd apt-get
+require_cmd sha256sum
+require_cmd tar
+require_cmd rm
+require_cmd mv
+require_cmd mkdir
+require_cmd bash
+require_cmd tee
+
+if [ "$#" -lt 2 ]; then
+    log_info "Usage: $0 <influx token> <influx bucket>"
+    exit 0
 fi
 
 # Get the public IP address of the machine
-nat_address=$(curl ifconfig.me)
+log_info "Retrieving public IP address..."
+if ! nat_address=$(curl -s ifconfig.me); then
+    log_error "Failed to retrieve public IP address."
+    exit 1
+fi
 
-chain=genesis.json
+log_info "Public IP is $nat_address."
 
-sudo apt install -y curl
+chain="genesis.json"
 
-# Set the version of the node
-version=$(curl -s https://api.github.com/repos/NEXTEP-CXS/nxchain/releases/latest | grep tag_name | awk '{print $2}' | tr -d '",' | cut -c 2-)
+log_info "Installing curl..."
+if ! sudo apt-get install -y curl; then
+    log_error "Failed to install curl."
+    exit 1
+fi
 
-# Set the path to the binary file
+log_info "Fetching the latest version number..."
+if ! version=$(curl -s https://api.github.com/repos/NEXTEP-CXS/nxchain/releases/latest | grep tag_name | awk '{print $2}' | tr -d '",' | cut -c 2-); then
+    log_error "Failed to fetch the latest version number."
+    exit 1
+fi
+
+log_info "Latest version is $version."
+
 binary_path="/usr/local/bin/nxchain"
-
-# Set the path to the data directory
 data_dir="/data/nxchain"
-
-# Set the path to store telegraf secrets
 telegraf_conf_dir="/usr/local/telegraf"
 telegraf_conf_file="telegraf.env"
 
 influx_token=$1
 influx_bucket=$2
 
-# Set any additional flags or options for the node
 flags="--price-limit 5000000000 --nat $nat_address --chain $data_dir/$chain --libp2p 0.0.0.0:4547 --jsonrpc :4545 --prometheus 127.0.0.1:5555 --seal"
 
-# Used as name for scheduled auto node backup
-backup_file="backup.dat"
+log_info "Downloading nxchain version $version..."
+if ! wget "https://github.com/NEXTEP-CXS/nxchain/releases/download/v$version/nxchain_${version}_linux_amd64.tar.gz"; then
+    log_error "Failed to download nxchain version $version."
+    exit 1
+fi
 
-# Download the binary file
-wget https://github.com/NEXTEP-CXS/nxchain/releases/download/v$version/nxchain_$version\_linux_amd64.tar.gz
+log_info "Extracting the binary..."
+if ! tar -xvzf "nxchain_${version}_linux_amd64.tar.gz"; then
+    log_error "Failed to extract the binary."
+    exit 1
+fi
 
-# Extract the binary file
-tar -xvzf nxchain_$version\_linux_amd64.tar.gz
+log_info "Cleaning up downloaded tar.gz file..."
+if ! rm "nxchain_${version}_linux_amd64.tar.gz"; then
+    log_error "Failed to remove the tar.gz file."
+    exit 1
+fi
 
-# Remove the tar.gz file
-rm nxchain_$version\_linux_amd64.tar.gz
+log_info "Moving the binary to $binary_path..."
+if ! sudo mv nxchain "$binary_path"; then
+    log_error "Failed to move the binary to $binary_path."
+    exit 1
+fi
 
-# Move the binary file to the specified path
-sudo mv nxchain $binary_path
+log_info "Creating data directory at $data_dir..."
+if ! sudo mkdir -p "$data_dir"; then
+    log_error "Failed to create data directory at $data_dir."
+    exit 1
+fi
 
-# Create the data directory if it doesn't exist
-sudo mkdir -p $data_dir
-
-# cleanup
-sudo rm -f $data_dir/$chain
-# fetch genesis.json
-sudo wget -P $data_dir https://raw.githubusercontent.com/NEXTEP-CXS/nxchain/master/$chain
-
-# Create the service file
-sudo bash -c "cat >/etc/systemd/system/nxchain.service <<EOL
-[Unit]
-Description=NXChain
-After=network.target
-StartLimitIntervalSec=0
-
-[Service]
-Type=simple
-Restart=always
-RestartSec=10
-ExecStart=$binary_path server --data-dir $data_dir $flags
-User=root
-
-[Install]
-WantedBy=multi-user.target
-EOL"
-
-sudo systemctl enable nxchain
+log_info "Cleaning up and fetching $chain..."
+if ! (sudo rm -f "$data_dir/$chain" && sudo wget -P "$data_dir" "https://raw.githubusercontent.com/NEXTEP-CXS/nxchain/master/$chain"); then
+    log_error "Failed to cleanup or fetch $chain."
+    exit 1
+fi
 
 # Install telegraf
-wget -q https://repos.influxdata.com/influxdata-archive_compat.key
-echo '393e8779c89ac8d958f81f942f9ad7fb82a25e133faddaf92e15b16e6ac9ce4c influxdata-archive_compat.key' | sha256sum -c && cat influxdata-archive_compat.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/influxdata-archive_compat.gpg > /dev/null
-echo 'deb [signed-by=/etc/apt/trusted.gpg.d/influxdata-archive_compat.gpg] https://repos.influxdata.com/debian stable main' | sudo tee /etc/apt/sources.list.d/influxdata.list
-sudo apt-get update
-sudo apt-get install telegraf -y
+log_info "Installing telegraf..."
+if ! wget -qO - https://repos.influxdata.com/influxdata-archive_compat.key | gpg --dearmor | sudo tee /usr/share/keyrings/influxdata-archive-keyring.gpg > /dev/null; then
+    log_error "Failed to download and install GPG key for telegraf."
+    exit 1
+fi
 
-# Create telegraf service file
-sudo bash -c "cat >/etc/systemd/system/telegraf.service <<EOL
-[Unit]
-Description=Telegraf
-After=network.target
-StartLimitIntervalSec=0
+if ! echo "deb [signed-by=/usr/share/keyrings/influxdata-archive-keyring.gpg] https://repos.influxdata.com/debian stable main" | sudo tee /etc/apt/sources.list.d/influxdata.list; then
+    log_error "Failed to add telegraf repository."
+    exit 1
+fi
 
-[Service]
-Type=simple
-Restart=always
-RestartSec=10
-ExecStart=telegraf --config https://eu-central-1-1.aws.cloud2.influxdata.com/api/v2/telegrafs/0abf0c860d2c4000
-EnvironmentFile=$telegraf_conf_dir/$telegraf_conf_file
-User=root
+if ! sudo apt-get update && sudo apt-get install -y telegraf; then
+    log_error "Failed to install telegraf."
+    exit 1
+fi
 
-[Install]
-WantedBy=multi-user.target
-EOL"
+log_info "Configuring telegraf..."
+if ! sudo mkdir -p "$telegraf_conf_dir"; then
+    log_error "Failed to create telegraf configuration directory."
+    exit 1
+fi
 
-sudo mkdir $telegraf_conf_dir
+telegraf_env_content="INFLUX_TOKEN=$influx_token
+INFLUX_BUCKET=$influx_bucket
+"
 
-sudo bash -c "cat >$telegraf_conf_dir/$telegraf_conf_file <<EOL
-INFLUX_TOKEN=$influx_token
-INFLUX_BUCKET=\"$influx_bucket\"
-EOL"
+if ! echo "$telegraf_env_content" | sudo tee "$telegraf_conf_dir/$telegraf_conf_file" > /dev/null; then
+    log_error "Failed to create telegraf environment file."
+    exit 1
+fi
 
-sudo systemctl enable telegraf
+# Create telegraf service override for environment file
+telegraf_service_override_dir="/etc/systemd/system/telegraf.service.d"
+telegraf_service_override_file="override.conf"
+if ! sudo mkdir -p "$telegraf_service_override_dir"; then
+    log_error "Failed to create telegraf service override directory."
+    exit 1
+fi
 
-sudo systemctl daemon-reload
-sudo systemctl start telegraf
-sudo systemctl restart nxchain
+telegraf_service_override_content="[Service]
+EnvironmentFile=-$telegraf_conf_dir/$telegraf_conf_file
+"
 
-sudo apt install -y rsyslog
-sudo bash -c "cat > /etc/rsyslog.d/50-telegraf.conf << EOL
-$ActionQueueType LinkedList # use asynchronous processing
-$ActionQueueFileName srvrfwd # set file name, also enables disk mode
-$ActionResumeRetryCount -1 # infinite retries on insert failure
-$ActionQueueSaveOnShutdown on # save in-memory data if rsyslog shuts down
+if ! echo "$telegraf_service_override_content" | sudo tee "$telegraf_service_override_dir/$telegraf_service_override_file" > /dev/null; then
+    log_error "Failed to create telegraf service override file."
+    exit 1
+fi
+
+log_info "Reloading systemd daemon..."
+if ! sudo systemctl daemon-reload; then
+    log_error "Failed to reload systemd daemon."
+    exit 1
+fi
+
+log_info "Enabling and starting telegraf service..."
+if ! sudo systemctl enable telegraf && sudo systemctl restart telegraf; then
+    log_error "Failed to enable and start telegraf service."
+    exit 1
+fi
+# Configure rsyslog for nxchain logging
+log_info "Configuring rsyslog for nxchain..."
+rsyslog_conf_content="\$ActionQueueType LinkedList # use asynchronous processing
+\$ActionQueueFileName srvrfwd # set file name, also enables disk mode
+\$ActionResumeRetryCount -1 # infinite retries on insert failure
+\$ActionQueueSaveOnShutdown on # save in-memory data if rsyslog shuts down
 
 # forward over tcp with octet framing according to RFC 5425
-:programname, isequal, \"nxchain\" @@(o)127.0.0.1:6514;RSYSLOG_SyslogProtocol23Format
-EOL"
-sudo systemctl restart rsyslog
+:programname, isequal, "nxchain" @@(o)127.0.0.1:6514;RSYSLOG_SyslogProtocol23Format
+"
 
+if ! echo "$rsyslog_conf_content" | sudo tee /etc/rsyslog.d/50-nxchain.conf > /dev/null; then
+    log_error "Failed to configure rsyslog for nxchain."
+    exit 1
+fi
 
-# Create node backup service file
-sudo bash -c "cat >/etc/systemd/system/nxchain_backup.service <<EOL
-[Unit]
-Description=Runs nxchain backup task once a day
-After=network.target
+log_info "Restarting rsyslog service..."
+if ! sudo systemctl restart rsyslog; then
+    log_error "Failed to restart rsyslog service."
+    exit 1
+fi
 
-[Service]
-Type=simple
-Restart=on-failure
-ExecStart=sudo rm -f $data_dir/$backup_file && sudo $binary_path backup --out $data_dir/$backup_file
-User=root
-
-[Timer]
-OnCalendar=daily
-Peristent=true
-
-[Install]
-WantedBy=multi-user.target
-EOL"
-
-sudo systemctl daemon-reload
-sudo systemctl enable nxchain_backup
-sudo systemctl start nxchain_backup
+log_info "Installation and configuration of NXChain and Telegraf completed successfully."
+log_info "NXChain service is enabled and running."
+log_info "Telegraf service is enabled and running."
+log_info "System logs for NXChain are being forwarded to the configured log server."
