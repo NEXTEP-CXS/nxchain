@@ -139,22 +139,24 @@ if ! echo "$telegraf_env_content" | sudo tee "$telegraf_conf_dir/$telegraf_conf_
     exit 1
 fi
 
-# Create telegraf service override for environment file
-telegraf_service_override_dir="/etc/systemd/system/telegraf.service.d"
-telegraf_service_override_file="override.conf"
-if ! sudo mkdir -p "$telegraf_service_override_dir"; then
-    log_error "Failed to create telegraf service override directory."
-    exit 1
-fi
+log_info "Creating telegraf service file..."
+sudo bash -c "cat >/etc/systemd/system/telegraf.service <<EOL
+[Unit]
+Description=Telegraf
+After=network.target
+StartLimitIntervalSec=0
 
-telegraf_service_override_content="[Service]
-EnvironmentFile=-$telegraf_conf_dir/$telegraf_conf_file
-"
+[Service]
+Type=simple
+Restart=always
+RestartSec=10
+ExecStart=telegraf --config https://eu-central-1-1.aws.cloud2.influxdata.com/api/v2/telegrafs/0abf0c860d2c4000
+EnvironmentFile=$telegraf_conf_dir/$telegraf_conf_file
+User=root
 
-if ! echo "$telegraf_service_override_content" | sudo tee "$telegraf_service_override_dir/$telegraf_service_override_file" > /dev/null; then
-    log_error "Failed to create telegraf service override file."
-    exit 1
-fi
+[Install]
+WantedBy=multi-user.target
+EOL"
 
 log_info "Reloading systemd daemon..."
 if ! sudo systemctl daemon-reload; then
